@@ -27,4 +27,4 @@ while True:
     if conversion > 1:
         conversion = 1
 
-    print(conversion)
+    print((round(conversion, 1)))
