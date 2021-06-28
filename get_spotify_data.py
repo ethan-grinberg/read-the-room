@@ -12,7 +12,7 @@ scopes = ['streaming', 'user-read-recently-played', 'user-read-playback-position
 
 def get_song_score(song_id):
     features = sp.audio_features(song_id)[0]
-    score = (features["danceability"]) * (features["energy"]) * (features["valence"]) * (features["tempo"] / 100)
+    score = (features["danceability"]) * (features["energy"]) * (features["tempo"] / 100)
     return round(score, 1)
 
 # authorize
@@ -22,19 +22,21 @@ sp = spotipy.Spotify(auth_manager=auth_manager)
 # get happy scores for all recent songs
 songs = sp.current_user_recently_played()
 song_ids = [song["track"]["id"] for song in songs["items"]]
-song_scores = [get_song_score(song_id) for song_id in song_ids]
+song_scores = {song_id: get_song_score(song_id) for song_id in song_ids}
 
 
-def get_closes_score(scores, value):
-    lst = np.asarray(scores)
+def get_closest_score(scores, value):
+    lst = np.asarray(list(scores.values()))
     idx = (np.abs(lst - value)).argmin()
-    return scores[idx]
 
-rand_song = song_ids[random.randint(0, len(song_ids) - 1)]
-print(get_song_score(rand_song))
+    return list(scores.keys())[list(scores.values()).index(lst[idx])]
 
-#play rand song
-uri = sp.audio_features(rand_song)[0]["uri"]
+
+song_id = get_closest_score(song_scores, 0)
+print(song_scores[song_id])
+
+# play rand song
+uri = sp.audio_features(song_id)[0]["uri"]
 device = sp.devices()["devices"][0]["id"]
 sp.start_playback(device_id=device, uris=[uri])
 
