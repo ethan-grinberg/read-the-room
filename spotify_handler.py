@@ -72,9 +72,6 @@ class SpotifyHandler:
         self.update_progress()
         return (val - min_val) / range_
 
-    def get_song_scores(self):
-        return self.song_scores
-
     def get_closest_score(self, value):
         lst = np.asarray(list(self.song_scores.values()))
         idx = (np.abs(lst - value)).argmin()
