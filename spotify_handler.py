@@ -66,10 +66,9 @@ class SpotifyHandler:
         df = df / range_
         return df
 
-    # def get_closest_score(self, value):
-    #     lst = np.asarray(list(self.song_scores.values()))
-    #     idx = (np.abs(lst - value)).argmin()
-    #     return list(self.song_scores.keys())[list(self.song_scores.values()).index(lst[idx])]
+    def get_closest_score(self, value):
+        sorted_df = self.song_scores.iloc[(self.song_scores['song_score']-value).abs().argsort()]
+        return sorted_df.iloc[0].id
 
     def listen_and_choose(self):
         currently_playing = self.sp.currently_playing()
