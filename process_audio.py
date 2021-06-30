@@ -8,8 +8,6 @@ from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
-CHUNK = 1024
-
 
 def get_volume_db(data_):
     count = len(data_) / 2
@@ -23,13 +21,25 @@ def get_volume_db(data_):
     return 20 * math.log10(math.sqrt(sum_squares / count))
 
 
-def normalize(vol_data):
-    array = np.array(vol_data)
+MAX_VOL = -15.0
+MIN_VOL_SPK = -63.5
+MIN_VOL_MIC = -95.0
 
-    range_ = array.max() - array.min()
-    array = array - array.min()
-    array = array / range_
-    return array * 100
+
+def normalize_audio(min_, values):
+    range_ = MAX_VOL - min_
+    values = (values - min_) / range_
+    return values * 100
+
+
+def get_normalized_loudness(input_vol, output_vol):
+    mic = normalize_audio(MIN_VOL_MIC, np.array(input_vol))
+    spkr = normalize_audio(MIN_VOL_SPK, np.array(output_vol))
+    # loudness = mic - spkr
+    return mic.mean()
+
+
+CHUNK = 1024
 
 
 def get_loudness_last(seconds):
@@ -52,7 +62,8 @@ def get_loudness_last(seconds):
 
     start = time.time()
     elapsed = 0
-    vol_data = []
+    mic_vol = []
+    spk_vol = []
     while elapsed < seconds:
         elapsed = time.time() - start
 
@@ -61,7 +72,7 @@ def get_loudness_last(seconds):
         input_vol = get_volume_db(data)
         output_vol = volume.GetMasterVolumeLevel()
 
-        vol_data.append(input_vol - output_vol)
+        mic_vol.append(input_vol)
+        spk_vol.append(output_vol)
 
-    vol_data = normalize(vol_data)
-    return vol_data.mean()
+    return get_normalized_loudness(mic_vol, spk_vol)

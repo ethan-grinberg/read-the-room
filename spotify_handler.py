@@ -24,7 +24,7 @@ class SpotifyHandler:
     def get_song_score(self, song_id):
         # weights danceability the highest and energy next highest
         features = self.sp.audio_features(song_id)[0]
-        score = (2 * features["danceability"]) + (1.5 * features["energy"]) + (features["tempo"] / 100) + features[
+        score = (2 * features["danceability"]) + (features["energy"]) + (features["tempo"] / 100) + features[
             "liveness"] + (features["loudness"] / 100)
         return score
 
