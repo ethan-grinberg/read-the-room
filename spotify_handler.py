@@ -3,6 +3,8 @@ from spotipy.oauth2 import SpotifyOAuth
 import os
 import pandas as pd
 
+from process_audio import get_loudness_last
+
 os.environ["SPOTIPY_CLIENT_ID"] = '4e8ef68ce1cd4a8c9b0e9a854f1e7ae9'
 os.environ["SPOTIPY_CLIENT_SECRET"] = "1b556835bc634f718be10d11512d1eb3"
 os.environ["SPOTIPY_REDIRECT_URI"] = 'http://localhost:7777/callback'
@@ -20,9 +22,10 @@ class SpotifyHandler:
         self.song_scores = pd.read_csv("Data/song_scores.csv")
 
     def get_song_score(self, song_id):
+        # weights danceability the highest and energy next highest
         features = self.sp.audio_features(song_id)[0]
-        score = (features["danceability"]) + (features["energy"]) + (features["tempo"] / 100) + (
-                features["liveness"] + features["valence"])
+        score = (2 * features["danceability"]) + (1.5 * features["energy"]) + (features["tempo"] / 100) + features[
+            "liveness"] + (features["loudness"] / 100)
         return score
 
     def update_spotify_data_file(self):
@@ -64,18 +67,36 @@ class SpotifyHandler:
         range_ = df.max() - df.min()
         df = df - df.min()
         df = df / range_
-        return df
+        return df * 100
 
     def get_closest_score(self, value):
         sorted_df = self.song_scores.iloc[(self.song_scores['song_score']-value).abs().argsort()]
-        return sorted_df.iloc[0].id
+        return sorted_df.iloc[0]
 
     def listen_and_choose(self):
-        currently_playing = self.sp.currently_playing()
-        seconds_left = currently_playing["progress_ms"]
-        while True:
-            seconds_left = currently_playing["item"]["duration_ms"] - currently_playing["progress_ms"]
-            print(seconds_left)
+        # currently_playing = self.sp.currently_playing()
+        # seconds_left = currently_playing["progress_ms"]
+        # while True:
+        #     seconds_left = currently_playing["item"]["duration_ms"] - currently_playing["progress_ms"]
+        #     print(seconds_left)
+        #
+        #     # Make sure the currently playing song stays up to date
+        #     currently_playing = self.sp.currently_playing()
 
-            # Make sure the currently playing song stays up to date
-            currently_playing = self.sp.currently_playing()
+        # get loudness score for last 10 seconds
+        loudness_score = get_loudness_last(10)
+
+        # get song closest to loudness score
+        closest_song = self.get_closest_score(loudness_score)
+        song_id = closest_song.id
+
+        # play song
+        uri = self.sp.audio_features(song_id)[0]["uri"]
+        device = self.sp.devices()["devices"][0]["id"]
+        self.sp.start_playback(device_id=device, uris=[uri])
+
+        # print song info
+        print(self.sp.audio_features(song_id))
+        print("loudness score: " + str(loudness_score))
+        print(self.sp.track(song_id)["name"] + " score: " + str(closest_song.song_score))
+

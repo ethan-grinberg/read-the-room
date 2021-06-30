@@ -8,6 +8,9 @@ from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
+CHUNK = 1024
+
+
 def get_volume_db(data_):
     count = len(data_) / 2
     format_ = "%dh" % count
@@ -17,43 +20,48 @@ def get_volume_db(data_):
         n = sample * (1.0 / 32768)
         sum_squares += n * n
 
-
     return 20 * math.log10(math.sqrt(sum_squares / count))
 
 
-CHUNK = 1024
-p = pyaudio.PyAudio()
-stream = p.open(format=pyaudio.paInt16,
-                channels=2,
-                rate=44100,
-                input=True,
-                frames_per_buffer=CHUNK)
+def normalize(vol_data):
+    array = np.array(vol_data)
+
+    range_ = array.max() - array.min()
+    array = array - array.min()
+    array = array / range_
+    return array * 100
 
 
-# Get volume controls of laptop
-devices = AudioUtilities.GetSpeakers()
-interface = devices.Activate(
-    IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-volume = cast(interface, POINTER(IAudioEndpointVolume))
+def get_loudness_last(seconds):
+    # get input audio
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16,
+                    channels=2,
+                    rate=44100,
+                    input=True,
+                    frames_per_buffer=CHUNK)
 
-start = time.time()
-elapsed = 0
-vol_last_5 = []
-while elapsed < 5:
-    elapsed = time.time() - start
+    # Get volume controls of laptop
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(
+        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    data = stream.read(CHUNK)
+    # tell console it's listening
+    print("Listening for " + str(seconds) + " seconds...")
 
-    input_vol = get_volume_db(data)
-    output_vol = volume.GetMasterVolumeLevel()
+    start = time.time()
+    elapsed = 0
+    vol_data = []
+    while elapsed < seconds:
+        elapsed = time.time() - start
 
-    vol_last_5.append(input_vol - output_vol)
+        data = stream.read(CHUNK)
 
-array = np.array(vol_last_5)
+        input_vol = get_volume_db(data)
+        output_vol = volume.GetMasterVolumeLevel()
 
-range_ = array.max() - array.min()
-array = array - array.min()
-array = array / range_
+        vol_data.append(input_vol - output_vol)
 
-print(array.mean())
-print(array)
+    vol_data = normalize(vol_data)
+    return vol_data.mean()
