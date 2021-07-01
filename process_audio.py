@@ -18,7 +18,7 @@ def get_volume_db(data_):
         n = sample * (1.0 / 32768)
         sum_squares += n * n
 
-    return 20 * math.log10(math.sqrt(sum_squares / count))
+    return 100 * math.sqrt(sum_squares / count)
 
 
 MAX_VOL = -15.0
@@ -70,6 +70,7 @@ def get_loudness_last(seconds):
         data = stream.read(CHUNK)
 
         input_vol = get_volume_db(data)
+        print(input_vol)
         output_vol = volume.GetMasterVolumeLevel()
 
         mic_vol.append(input_vol)
