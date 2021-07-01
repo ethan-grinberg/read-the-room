@@ -5,6 +5,7 @@ import time
 import pyaudio
 import struct
 import numpy as np
+from scipy import stats
 
 CHUNK = 1024
 SR = 44100
@@ -45,12 +46,12 @@ hop_length = 512
 #
 
 trumpet, sr1 = librosa.load(librosa.ex("fishin"), offset=95, duration=10)
-# brahms, sr2 = librosa.load(librosa.ex("fishin"), offset=90, duration=5.0)
+brahms, sr2 = librosa.load(librosa.ex("fishin"), offset=90, duration=10)
 talking, sr4 = librosa.load("Data/talking.wav", offset=10, duration=10)
 party, sr3 = librosa.load("Data/party.wav", offset=5, duration=10)
 
 trumpet_spec = np.abs(librosa.stft(trumpet))
-# brahms_spec = np.abs(librosa.stft(brahms))
+brahms_spec = np.abs(librosa.stft(brahms))
 party_spec = np.abs(librosa.stft(party))
 talking_spec = np.abs(librosa.stft(talking))
 
@@ -66,5 +67,7 @@ def get_diff_mean(array1, array2):
 
 print(100 * (1 - abs(get_diff_mean(trumpet_spec, party_spec))))
 print(100 * (1 - abs(get_diff_mean(talking_spec, party_spec))))
+
+print(str(stats.ttest_ind(np.ndarray.flatten(talking_spec), np.ndarray.flatten(party_spec))))
 
 # print(str(get_zscore(trumpet_spec, brahms_spec)))
