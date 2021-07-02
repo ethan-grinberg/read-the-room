@@ -7,7 +7,7 @@ def main():
     # spotify.update_spotify_data_file()
 
     # main function for picking songs
-    spotify.listen_and_choose()
+    spotify.listen_and_choose(10)
 
 
 if __name__ == '__main__':

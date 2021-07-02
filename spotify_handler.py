@@ -18,6 +18,9 @@ class SpotifyHandler:
         auth_manager = SpotifyOAuth(scope=scopes)
         self.sp = spotipy.Spotify(auth_manager=auth_manager)
 
+        # spotify device
+        self.device = self.sp.devices()["devices"][0]["id"]
+
         # read song_scores csv file for speed
         self.song_scores = pd.read_csv("Data/song_scores.csv")
 
@@ -73,30 +76,36 @@ class SpotifyHandler:
         sorted_df = self.song_scores.iloc[(self.song_scores['song_score']-value).abs().argsort()]
         return sorted_df.iloc[0]
 
-    def listen_and_choose(self):
-        # currently_playing = self.sp.currently_playing()
-        # seconds_left = currently_playing["progress_ms"]
-        # while True:
-        #     seconds_left = currently_playing["item"]["duration_ms"] - currently_playing["progress_ms"]
-        #     print(seconds_left)
-        #
-        #     # Make sure the currently playing song stays up to date
-        #     currently_playing = self.sp.currently_playing()
-
-        # get loudness score for last 10 seconds
-        loudness_score = get_loudness_last(10)
-
+    def queue_closest_song(self, loudness_score):
         # get song closest to loudness score
         closest_song = self.get_closest_score(loudness_score)
         song_id = closest_song.id
 
-        # play song
+        # queue song
         uri = self.sp.audio_features(song_id)[0]["uri"]
-        device = self.sp.devices()["devices"][0]["id"]
-        self.sp.start_playback(device_id=device, uris=[uri])
+        self.sp.add_to_queue(device_id=self.device, uri=uri)
 
         # print song info
         print(self.sp.audio_features(song_id))
         print("loudness score: " + str(loudness_score))
         print(self.sp.track(song_id)["name"] + " score: " + str(closest_song.song_score))
+        return song_id
+
+    def listen_and_choose(self, loudness_dur):
+        picked_song = False
+        picked_song_id = ""
+
+        currently_playing = self.sp.currently_playing()
+        seconds_left = currently_playing["progress_ms"]
+        while True:
+            seconds_left = currently_playing["item"]["duration_ms"] - currently_playing["progress_ms"]
+            if (seconds_left <= (2000 * loudness_dur)) and not picked_song:
+                picked_song_id = self.queue_closest_song(get_loudness_last(loudness_dur))
+                picked_song = True
+
+            if currently_playing["item"]["id"] == picked_song_id:
+                picked_song = False
+
+            # Make sure the currently playing song stays up to date
+            currently_playing = self.sp.currently_playing()
 
