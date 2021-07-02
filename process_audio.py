@@ -4,67 +4,78 @@ import math
 import time
 import numpy as np
 
-from ctypes import cast, POINTER
-from comtypes import CLSCTX_ALL
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-
 CHUNK = 1024
 
 
-def get_volume_db(data_):
-    count = len(data_) / 2
-    format_ = "%dh" % count
-    shorts = struct.unpack(format_, data_)
-    sum_squares = 0.0
-    for sample in shorts:
-        n = sample * (1.0 / 32768)
-        sum_squares += n * n
+class AudioProcessor:
+    def __init__(self):
+        self.p = pyaudio.PyAudio()
+        print(self.p.get_default_input_device_info())
+        self.MIN_RMS = self.calibrate_mic()
+        print(self.MIN_RMS)
 
-    return 20 * math.log10(math.sqrt(sum_squares / count))
+    def calibrate_mic(self):
+        stream = self.p.open(format=pyaudio.paInt16,
+                             channels=2,
+                             rate=44100,
+                             input=True,
+                             frames_per_buffer=CHUNK)
 
-
-def normalize_audio(values, calibration):
-    return 100 * ((values - calibration) / -calibration)
-
-
-def get_normalized_loudness(input_vol):
-    # bug, only gets absolute min when mic turns on for first time
-    mic = normalize_audio(np.array(input_vol), input_vol[0])
-    return mic.mean()
-
-
-def get_loudness_last(seconds):
-    # get input audio
-    p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=2,
-                    rate=44100,
-                    input=True,
-                    frames_per_buffer=CHUNK)
-
-    # Get volume controls of laptop
-    # devices = AudioUtilities.GetSpeakers()
-    # interface = devices.Activate(
-    #     IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    # volume = cast(interface, POINTER(IAudioEndpointVolume))
-
-    # tell console it's listening
-    print("Listening for " + str(seconds) + " seconds...")
-
-    start = time.time()
-    elapsed = 0
-    mic_vol = []
-    while elapsed < seconds:
-        elapsed = time.time() - start
-
+        # get min rms value
         data = stream.read(CHUNK)
+        min_rms = self.get_volume_rms(data)
 
-        input_vol = get_volume_db(data)
+        # stop stream
+        stream.stop_stream()
+        stream.close()
+        return min_rms
 
-        mic_vol.append(input_vol)
+    @staticmethod
+    def get_volume_rms(data_):
+        count = len(data_) / 2
+        format_ = "%dh" % count
+        shorts = struct.unpack(format_, data_)
+        sum_squares = 0.0
+        for sample in shorts:
+            n = sample * (1.0 / 32768)
+            sum_squares += n * n
 
-    print(mic_vol)
-    return get_normalized_loudness(mic_vol)
+        return math.sqrt(sum_squares / count)
 
+    def convert_to_db(self, rms):
+        return 20 * math.log10(rms / self.MIN_RMS)
 
-print(get_loudness_last(10))
+    @staticmethod
+    def get_normalized_loudness(input_vol):
+        # TODO decide if it should be median or mean
+        # always will have absolute min value at the beginning
+        return np.array(input_vol).mean()
+
+    def get_loudness_last(self, seconds):
+        stream = self.p.open(format=pyaudio.paInt16,
+                             channels=2,
+                             rate=44100,
+                             input=True,
+                             frames_per_buffer=CHUNK)
+
+        # tell console it's listening
+        print("Listening for " + str(seconds) + " seconds...")
+
+        start = time.time()
+        elapsed = 0
+        mic_vol = []
+        while elapsed < seconds:
+            elapsed = time.time() - start
+
+            data = stream.read(CHUNK)
+
+            input_vol = self.convert_to_db(self.get_volume_rms(data))
+
+            mic_vol.append(input_vol)
+
+        # stop stream
+        stream.stop_stream()
+        stream.close()
+
+        # print(mic_vol)
+        return self.get_normalized_loudness(mic_vol)

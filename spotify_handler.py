@@ -2,8 +2,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import pandas as pd
-
-from process_audio import get_loudness_last
+from process_audio import AudioProcessor
 
 os.environ["SPOTIPY_CLIENT_ID"] = '4e8ef68ce1cd4a8c9b0e9a854f1e7ae9'
 os.environ["SPOTIPY_CLIENT_SECRET"] = "1b556835bc634f718be10d11512d1eb3"
@@ -21,12 +20,15 @@ class SpotifyHandler:
         # spotify device
         self.device = self.sp.devices()["devices"][0]["id"]
 
-        #keep track of played songs
+        # keep track of played songs
         self.picked_songs = []
-        self.MAX_REPEAT_SONGS = 5
+        self.SONG_MEM_SPAN = 15
 
         # read song_scores csv file for speed
         self.song_scores = pd.read_csv("Data/song_scores.csv")
+
+        # initialize audio processor
+        self.room_reader = AudioProcessor()
 
     def get_song_score(self, song_id):
         # weights danceability the highest and energy next highest
@@ -63,6 +65,9 @@ class SpotifyHandler:
         normalized = normalized[~normalized.index.duplicated(keep='first')]
         normalized.index.set_names("id", inplace=True)
 
+        # shuffle data frame, so songs from same album won't play in a row
+        normalized = normalized.sample(frac=1)
+
         # update member variable
         self.song_scores = normalized
 
@@ -77,17 +82,16 @@ class SpotifyHandler:
         return df * 100
 
     def get_closest_score(self, value):
-        sorted_df = self.song_scores.iloc[(self.song_scores['song_score']-value).abs().argsort()]
+        # make sure it only picks songs that haven't been played recently
+        songs_to_pick = self.song_scores.loc[~self.song_scores.id.isin(self.picked_songs)]
+        sorted_df = songs_to_pick.iloc[(songs_to_pick['song_score']-value).abs().argsort()]
         return sorted_df.iloc[0]
 
     def update_played_songs_list(self, song_id):
         self.picked_songs.append(song_id)
-
-        self.song_scores = self.song_scores.loc[~self.song_scores.id.isin(self.picked_songs)]
-        if len(self.picked_songs) >= self.MAX_REPEAT_SONGS:
-            # think of better way of doing this than reloading the csv
-            self.song_scores = pd.read_csv("Data/song_scores.csv")
-            self.picked_songs = []
+        # keep a running list of 5 previously played songs
+        if len(self.picked_songs) > self.SONG_MEM_SPAN:
+            del self.picked_songs[0]
 
     def queue_closest_song(self, loudness_score):
         # get song closest to loudness score
@@ -112,16 +116,16 @@ class SpotifyHandler:
         picked_song_id = ""
 
         currently_playing = self.sp.currently_playing()
-        seconds_left = currently_playing["progress_ms"]
         while True:
             seconds_left = currently_playing["item"]["duration_ms"] - currently_playing["progress_ms"]
+            # picks a song when previous song is almost over and it hasn't already picked a song
             if (seconds_left <= (2000 * loudness_dur)) and not picked_song:
-                picked_song_id = self.queue_closest_song(get_loudness_last(loudness_dur))
+                picked_song_id = self.queue_closest_song(self.room_reader.get_loudness_last(loudness_dur))
                 picked_song = True
 
+            # get ready to pick another song, when its picked song starts playing
             if currently_playing["item"]["id"] == picked_song_id:
                 picked_song = False
 
             # Make sure the currently playing song stays up to date
             currently_playing = self.sp.currently_playing()
-
