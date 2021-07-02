@@ -21,6 +21,10 @@ class SpotifyHandler:
         # spotify device
         self.device = self.sp.devices()["devices"][0]["id"]
 
+        #keep track of played songs
+        self.picked_songs = []
+        self.MAX_REPEAT_SONGS = 5
+
         # read song_scores csv file for speed
         self.song_scores = pd.read_csv("Data/song_scores.csv")
 
@@ -76,6 +80,15 @@ class SpotifyHandler:
         sorted_df = self.song_scores.iloc[(self.song_scores['song_score']-value).abs().argsort()]
         return sorted_df.iloc[0]
 
+    def update_played_songs_list(self, song_id):
+        self.picked_songs.append(song_id)
+
+        self.song_scores = self.song_scores.loc[~self.song_scores.id.isin(self.picked_songs)]
+        if len(self.picked_songs) >= self.MAX_REPEAT_SONGS:
+            # think of better way of doing this than reloading the csv
+            self.song_scores = pd.read_csv("Data/song_scores.csv")
+            self.picked_songs = []
+
     def queue_closest_song(self, loudness_score):
         # get song closest to loudness score
         closest_song = self.get_closest_score(loudness_score)
@@ -84,6 +97,9 @@ class SpotifyHandler:
         # queue song
         uri = self.sp.audio_features(song_id)[0]["uri"]
         self.sp.add_to_queue(device_id=self.device, uri=uri)
+
+        # make sure to add list to not repeat
+        self.update_played_songs_list(song_id)
 
         # print song info
         print(self.sp.audio_features(song_id))
