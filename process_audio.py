@@ -10,9 +10,9 @@ CHUNK = 1024
 class AudioProcessor:
     def __init__(self):
         self.p = pyaudio.PyAudio()
-        print(self.p.get_default_input_device_info())
         self.MIN_RMS = self.calibrate_mic()
-        print(self.MIN_RMS)
+        # print(self.p.get_default_input_device_info())
+        # print(self.MIN_RMS)
 
     def calibrate_mic(self):
         stream = self.p.open(format=pyaudio.paInt16,
@@ -48,7 +48,6 @@ class AudioProcessor:
     @staticmethod
     def get_normalized_loudness(input_vol):
         # TODO decide if it should be median or mean
-        # always will have absolute min value at the beginning
         return np.array(input_vol).mean()
 
     def get_loudness_last(self, seconds):
@@ -78,4 +77,26 @@ class AudioProcessor:
         stream.close()
 
         # print(mic_vol)
-        return self.get_normalized_loudness(mic_vol)
+        # don't include the first couple values as the mic wakes up
+        return self.get_normalized_loudness(mic_vol[3:])
+
+
+# # Test
+# audio = AudioProcessor()
+# vol_data = []
+# start = time.time()
+# elapsed = 0
+# while elapsed < 5:
+#     elapsed = time.time() - start
+#     stream = audio.p.open(format=pyaudio.paInt16,
+#                           channels=2,
+#                           rate=44100,
+#                           input=True,
+#                           frames_per_buffer=CHUNK)
+#     data = stream.read(CHUNK)
+#     vol_data.append(audio.convert_to_db(audio.get_volume_rms(data)))
+#
+#
+# print(max(vol_data))
+# print(vol_data)
+

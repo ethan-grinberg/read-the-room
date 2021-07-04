@@ -14,6 +14,7 @@ scopes = ['streaming', 'user-read-recently-played', 'user-read-playback-position
 
 class SpotifyHandler:
     def __init__(self):
+        # TODO find way for app not to crash if spotify isn't opened/playing
         auth_manager = SpotifyOAuth(scope=scopes)
         self.sp = spotipy.Spotify(auth_manager=auth_manager)
 
@@ -38,6 +39,9 @@ class SpotifyHandler:
         return score
 
     def update_spotify_data_file(self):
+        # TODO find way to get more spotify data (playlists)
+        # Maybe even let user choose which music they want to potentially play
+
         # get song listening info
         recent_songs = self.sp.current_user_recently_played()
         top_tracks = self.sp.current_user_top_tracks()
@@ -123,6 +127,7 @@ class SpotifyHandler:
                 picked_song_id = self.queue_closest_song(self.room_reader.get_loudness_last(loudness_dur))
                 picked_song = True
 
+            # TODO bug: doesn't pick another song if the song it queued up gets skipped right away
             # get ready to pick another song, when its picked song starts playing
             if currently_playing["item"]["id"] == picked_song_id:
                 picked_song = False
