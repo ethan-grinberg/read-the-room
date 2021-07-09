@@ -40,6 +40,7 @@ class SpotifyHandler:
 
     def update_spotify_data_file(self):
         # TODO find way to get more spotify data (playlists)
+        # TODO make way to catch exception if spotify does not have audio features of song
         # Maybe even let user choose which music they want to potentially play
 
         # get song listening info
