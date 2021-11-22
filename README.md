@@ -1,5 +1,5 @@
 # Read The Room
-An algorithm that automatically chooses the next song to play next based on the loudness in the room. The songs are picked from your Spotify library.
+An algorithm that automatically chooses the next song to play based on the loudness in the room. The songs are picked from your Spotify library.
 ## How To Use
 - Get Spotify API [keys](https://developer.spotify.com/)
 - clone this repository
