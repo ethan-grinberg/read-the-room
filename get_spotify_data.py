@@ -3,9 +3,6 @@ from spotipy.oauth2 import SpotifyOAuth
 import os
 import numpy as np
 
-os.environ["SPOTIPY_CLIENT_ID"] = '4e8ef68ce1cd4a8c9b0e9a854f1e7ae9'
-os.environ["SPOTIPY_CLIENT_SECRET"] = "1b556835bc634f718be10d11512d1eb3"
-os.environ["SPOTIPY_REDIRECT_URI"] = 'http://localhost:7777/callback'
 scopes = ['streaming', 'user-read-recently-played', 'user-read-playback-position', 'user-read-playback-state', 'user-modify-playback-state', 'playlist-read-private', 'playlist-read-collaborative', 'user-library-read', 'user-follow-read', 'user-top-read']
 
 

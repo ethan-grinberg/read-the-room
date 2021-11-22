@@ -1,13 +1,14 @@
 from spotify_handler import SpotifyHandler
+import sys
 
 
 def main():
     spotify = SpotifyHandler()
-    # If I want to update my spotify data based on recent listening
-    # spotify.update_spotify_data_file()
-
-    # main function for picking songs
-    spotify.listen_and_choose(10)
+    arg = sys.argv[1]
+    if arg == "update":
+         spotify.update_spotify_data_file()
+    elif arg == "play":
+        spotify.listen_and_choose(10)
 
 
 if __name__ == '__main__':
